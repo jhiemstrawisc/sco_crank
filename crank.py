@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 # import boto3
 # import glob
@@ -23,18 +23,23 @@ class S3Config:
                 self.access_key = f.read().strip()
             with open(f"{home}/.chtc_s3/secret.key", "r") as f:
                 self.secret_key = f.read().strip()
-            self.endpoint = "https://s3dev.chtc.wisc.edu"
+
+            self.access_key_file = f"{home}/.chtc_s3/access.key"
+            self.secret_key_file = f"{home}/.chtc_s3/secret.key"
+            self.endpoint = "s3dev.chtc.wisc.edu"
 
         elif akf and skf and endpoint:
             with open(akf, "r") as f:
                 self.access_key = f.read().strip()
             with open(skf, "r") as f:
                 self.secret_key = f.read().strip()
+
+            self.access_key_file = akf
+            self.secret_key_file = skf
             self.endpoint = endpoint
 
         else:
             raise Exception("Access/secret keys must be provided together with an endpoint.")
-
 
 def submit_job(in_bucket, out_bucket, csv_file_list, s3conf):
     files = []
@@ -67,8 +72,8 @@ def submit_job(in_bucket, out_bucket, csv_file_list, s3conf):
         "request_cpus":            1,
         
         # Set up the S3/file transfer stuff
-        "aws_access_key_id_file":  f"{s3conf.access_key}",
-        "aws_secret_access_key_file": f"{s3conf.secret_key}",
+        "aws_access_key_id_file":  f"{s3conf.access_key_file}",
+        "aws_secret_access_key_file": f"{s3conf.secret_key_file}",
         "transfer_input_files":    f"s3://{s3conf.endpoint}/{in_bucket}/$(INFILE)",
         # After conversion, $INFILE is actually the generated COG, so we still want to transfer it to the output bucket
         "transfer_output_remaps":  f"\"$(INFILE) = s3://{s3conf.endpoint}/{out_bucket}/$(INFILE); $(OUTFILE) = s3://{s3conf.endpoint}/{out_bucket}/$(OUTFILE);\"",
@@ -91,7 +96,7 @@ def submit_crondor(in_bucket, out_bucket, pattern, s3conf):
 
     submit_description = htcondor.Submit({
         "executable":              script_path,
-        "arguments":               f"crondor --input-bucket {in_bucket} --output-bucket {out_bucket} -p {pattern} -s {s3conf.secret_key} -a {s3conf.access_key} -e {s3conf.endpoint}",
+        "arguments":               f"crondor --input-bucket {in_bucket} --output-bucket {out_bucket} -p {pattern} -s {s3conf.secret_key_file} -a {s3conf.access_key_file} -e {s3conf.endpoint}",
         "universe":                "local",
         "request_disk":            "512MB",
         "request_cpus":            1,
@@ -109,6 +114,11 @@ def submit_crondor(in_bucket, out_bucket, pattern, s3conf):
         "cron_month":              "*",
         "cron_day_of_week":        "*",
         "on_exit_remove":          "false",
+
+        # Specify `getenv` so that our script uses the appropriate environment
+        # when it runs in local universe. This allows the crondor to access
+        # modules we've installed in the base env (notable, minio)
+        "getenv":                  "true",
     })
 
     schedd = htcondor.Schedd()
@@ -254,11 +264,11 @@ def helperMain():
     matching_files = get_matching_objects(args.input_bucket, args.pattern, s3conf)
     if len(matching_files) > 0:
         print("MATCHING FILES: ", matching_files)
-        fetch_objects(args.input_bucket, matching_files)
+        fetch_objects(args.input_bucket, matching_files, s3conf)
         print(f"Downloaded {len(matching_files)} files")
 
         # We now have the files, use them to submit the actual workflow
-        submit_job(args.input_bucket, args.output_bucket, matching_files)
+        submit_job(args.input_bucket, args.output_bucket, matching_files, s3conf)
 
         # Now that we've submitted the job, we rename the files in the bucket so we don't reprocess them
         rename_map = {}
@@ -268,7 +278,7 @@ def helperMain():
             # TODO: Make this work with the glob pattern
             rename_map[file] = f"{file[0:-7]}processing-{timestamp}.csv"
 
-        rename_object(args.input_bucket, rename_map)
+        rename_object(args.input_bucket, rename_map, s3conf)
 
 
 def topMain():
