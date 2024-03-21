@@ -301,12 +301,6 @@ def crondorMain():
         print("MATCHING FILES: ", matching_files)
         fetch_objects(args.input_bucket, matching_files, s3conf)
         print(f"Downloaded {len(matching_files)} files")
-
-
-
-
-
-
        
         rename_map = {}
         timestamp = time.strftime("%Y%m%d-%H%M%S")
@@ -329,35 +323,8 @@ def crondorMain():
         # We now have the files, use them to submit the actual workflow
         submit_DAG(args.input_bucket, args.output_bucket, matching_files, workflow_dir, s3conf)
 
-
-
         # Finally, rename the remote objects to prevent re-processing
         rename_object(args.input_bucket, rename_map, s3conf)
-
-
-        # # We now have the files, use them to submit the actual workflow
-        # submit_DAG(args.input_bucket, args.output_bucket, matching_files, s3conf)
-
-        # # Now that we've submitted the job, we rename the files in the bucket so we don't reprocess them
-        # rename_map = {}
-        # timestamp = time.strftime("%Y%m%d-%H%M%S")
-        # for file in matching_files:
-        #     # FOR NOW WE ASSUME EVERY FILE ENDS IN raw.csv
-        #     # TODO: Make this work with the glob pattern
-        #     rename_map[file] = f"{file[0:-7]}processing-{timestamp}.csv"
-
-        #     # Also, save the files locally
-        #     os.rename(file, rename_map[file])
-
-        # rename_object(args.input_bucket, rename_map, s3conf)
-
-
-        # # Create a timestamped directory to store the files in
-        # workflow_dir = "workflow-run-" + timestamp
-        # os.mkdir(timestamp, exist_ok=True)
-
-
-
 
 '''
 topMain is the main executable for the script. When running the script from the command line
