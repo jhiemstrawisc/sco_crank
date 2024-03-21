@@ -1,0 +1,9 @@
+name: sco_crank
+channels:
+  - conda-forge
+dependencies:
+  - python
+  - htcondor
+  - pip
+  - pip:
+    - minio

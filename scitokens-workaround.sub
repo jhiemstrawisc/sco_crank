@@ -1,0 +1,10 @@
+# Use to handle generation of Scitokens that are omitted through regular
+# DAG submission
+JobBatchName = scitoken-fakeout
+Executable = /bin/sleep
+Request_Memory = 10
+Request_Disk = 100
+Request_Cpus = 1
+Arguments = 180
+Hold = True
+Queue 1
