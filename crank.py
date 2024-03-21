@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
 
-# import boto3
-# import glob
-# import s3fs
-
 from minio import Minio
 from minio.commonconfig import CopySource
 import sys
