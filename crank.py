@@ -343,9 +343,9 @@ the crondor that acts as our trigger monitor
 '''
 def topMain():
     parser = argparse.ArgumentParser(description="SCO GeoTiff Workflow Tool")
-    parser.add_argument("--input-bucket", help="The bucket to check for matching objects.")
-    parser.add_argument("--output-bucket", help="The bucket to check for matching objects.")
-    parser.add_argument("-p", "--pattern", help="The glob pattern to match against.")
+    parser.add_argument("--input-bucket", help="The bucket to check for matching objects.", required=True)
+    parser.add_argument("--output-bucket", help="The bucket to check for matching objects.", required=True)
+    parser.add_argument("-p", "--pattern", help="The glob pattern to match against.", required=True)
     parser.add_argument("-s", "--secret-key", help="The secret key file to use for the S3 connection.")
     parser.add_argument("-a", "--access-key", help="The access key file to use for the S3 connection.")
     parser.add_argument("-e", "--s3-endpoint", help="The hostname of the s3 endpoint to connect to. Defaults to https://s3dev.chtc.wisc.edu.")
