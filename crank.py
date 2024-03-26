@@ -75,9 +75,7 @@ def submit_DAG(in_bucket, out_bucket, csv_file_list, workflow_dir, s3conf):
     # arguments manually.
     files = []
     for csv_file in csv_file_list:
-
         print("READING CSV FILE: ", csv_file)
-
         with open(csv_file, 'r', newline='') as csv_file:
             csv_reader = csv.reader(csv_file)
             for row in csv_reader:
@@ -110,15 +108,24 @@ def submit_DAG(in_bucket, out_bucket, csv_file_list, workflow_dir, s3conf):
         # Set up the S3/file transfer stuff
         "aws_access_key_id_file":  f"{s3conf.access_key_file}",
         "aws_secret_access_key_file": f"{s3conf.secret_key_file}",
-        "transfer_input_files":    f"s3://{s3conf.endpoint}/{in_bucket}/$(INFILE)",
+        "transfer_input_files":    f"s3://{s3conf.endpoint}/{in_bucket}/$(FULL_INFILE)",
         # After conversion, $INFILE is actually the generated COG, so we still want to transfer it to the output bucket
-        "transfer_output_remaps":  f"\"$(INFILE) = s3://{s3conf.endpoint}/{out_bucket}/$(INFILE); $(OUTFILE) = s3://{s3conf.endpoint}/{out_bucket}/$(OUTFILE);\"",
+        "transfer_output_remaps":  f"\"$(INFILE) = s3://{s3conf.endpoint}/{out_bucket}/$(FULL_INFILE); $(OUTFILE) = s3://{s3conf.endpoint}/{out_bucket}/$(FULL_OUTFILE);\"",
         "should_transfer_files":   "YES",
         "when_to_transfer_output": "ON_EXIT",
     })
 
     # Generate input args from the CSVs we read earlier
-    input_args = [{"node_name": "test-node", "INFILE": files[idx][0], "OUTFILE": files[idx][1], "BANDS": files[idx][2]} for idx in range(len(files))]
+    input_args = [{
+        "node_name": "test-node",
+        # Condor will flatten anything from S3 that looks like a subfolder, eg subfolder/my-image.tif gets
+        # downloaded as my-image.tif. We need to keep track of the full path so we can transfer it back to the
+        # output bucket.
+        "FULL_INFILE": files[idx][0],
+        "INFILE": ((files[idx][0]).split("/"))[-1],
+        "FULL_OUTFILE": files[idx][1],
+        "OUTFILE": ((files[idx][1]).split("/"))[-1],
+        "BANDS": files[idx][2]} for idx in range(len(files))]
     print("ABOUTY TO SUBMIT EP JOBS WITH INPUT ARGS: ", input_args)
 
     # Set up our post script -- this is how we manage state tracking to determine which jobs were actually successful
@@ -193,6 +200,9 @@ def submit_crondor(in_bucket, out_bucket, pattern, s3conf):
         # when it runs in local universe. This allows the crondor to access
         # modules we've installed in the base env (notably, minio)
         "getenv":                  "true",
+
+        # Finally, set the batch name so we know this is a crondor job
+        "JobBatchName":            f"SCO-Crondor-{pattern}",
     })
 
     schedd = htcondor.Schedd()
