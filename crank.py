@@ -156,6 +156,8 @@ def submit_DAG(in_bucket, out_bucket, csv_file_list, workflow_dir, s3conf):
     dag_file = htcondor.dags.write_dag(dag, os.getcwd(), node_name_formatter=htcondor.dags.SimpleFormatter("_"))
     dag_submit = htcondor.Submit.from_dag(str(dag_file), {
         'batch-name': "sco-geotiff-dag",
+        # Hardcode that we don't want more than 10k jobs running at once
+        'maxjobs': 10000,
     })
 
     print("Submitting DAG job...")
