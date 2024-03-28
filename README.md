@@ -33,8 +33,7 @@ git clone https://github.com/WIStCart/chtc_cog_processing.git
 cd chtc_cog_processing
 ```
 
-You'll first need to set up several environment pieces. After installing Conda (use the
-"Create a Miniconda Installation" instructions [here](https://chtc.cs.wisc.edu/uw-research-computing/conda-installation)),
+You'll first need to set up several environment pieces. After installing Conda (use the "Create a Miniconda Installation" instructions [here](https://chtc.cs.wisc.edu/uw-research-computing/conda-installation)),
 create the required conda environment by running `conda env create -f environment.yml`. After the environment is created, run `conda activate cog_pipeline`. 
 
 ## Start the Processing Pipeline
@@ -52,7 +51,7 @@ Example:
 python3 cog_pipeline.py -a ~/rmls3_keyid.txt -s ~/rmls3_accesskey.txt -e web.s3.wisc.edu --input-bucket rml-chtc-inputs --output-bucket rml-chtc-outputs -p "*raw.csv"
 ```
 
-The above only needs to be run once.  The Crondor job will run indefinitely, and does not need to be re-run at next time the user logs in.  As a best practice, it would be best to kill the Crondoor job with a `condor_rm {username}` if there will no image processing happening for a long period of time.  
+The above only needs to be run once.  The Crondor job will run indefinitely, and does not need to be re-run at next time the user logs in.  As a best practice, it would be best to kill the Crondor job with a `condor_rm {username}` if there will no image processing happening for a long period of time.  
 
 When matching files are found in the input bucket, a new directory is created wherever the script was initially run. This directory will be something like `workflow-run-<TIMESTAMP>`. All files Condor creates as a part of the DAG, as well as the CSV files of images, will be located here.
 
