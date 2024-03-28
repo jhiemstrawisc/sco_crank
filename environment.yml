@@ -1,4 +1,4 @@
-name: sco_crank
+name: cog_pipeline
 channels:
   - conda-forge
 dependencies:
