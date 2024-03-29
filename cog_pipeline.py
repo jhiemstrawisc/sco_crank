@@ -59,7 +59,7 @@ were completed successfully. In other words, it provides us with state tracking 
 
 Documentation for DAGMan can be found at https://htcondor.readthedocs.io/en/latest/automated-workflows/index.html
 '''
-def submit_DAG(in_bucket, out_bucket, csv_file_list, workflow_dir, s3conf):
+def submit_DAG(in_bucket, out_bucket, csv_file_list, workflow_dir, pattern, s3conf):
     # Get the abs path of the current dir before we switch dirs so we can send the executable
     # cogs.sh
     cwd = os.getcwd()
@@ -89,9 +89,9 @@ def submit_DAG(in_bucket, out_bucket, csv_file_list, workflow_dir, s3conf):
         "container_image":         "docker://osgeo/gdal:ubuntu-small-3.6.3",
 
         # Set up logging info
-        "log":                     "$(CLUSTER).log",
-        "output":                  "$(CLUSTER).out",
-        "error":                   "$(CLUSTER).err",
+        "log":                     "$(INFILE).log",
+        "output":                  "$(INFILE).out",
+        "error":                   "$(INFILE).err",
 
         # Set up the stuff we actually run
         # Note: In theory we're one directory deeper than the execution context of the script
@@ -117,7 +117,7 @@ def submit_DAG(in_bucket, out_bucket, csv_file_list, workflow_dir, s3conf):
 
     # Generate input args from the CSVs we read earlier
     input_args = [{
-        "node_name": "test-node",
+        "node_name": "cog-pipeline-node",
         # Condor will flatten anything from S3 that looks like a subfolder, eg subfolder/my-image.tif gets
         # downloaded as my-image.tif. We need to keep track of the full path so we can transfer it back to the
         # output bucket.
@@ -138,7 +138,7 @@ def submit_DAG(in_bucket, out_bucket, csv_file_list, workflow_dir, s3conf):
     # Set up the DAG we use as a job runner
     dag = htcondor.dags.DAG()
     dag.layer(
-        name = "sco-geotiff-dag",
+        name = f"COG-Pipeline-DAG-{pattern}",
         submit_description = submit_description,
         vars = input_args,
         # Allow each individual job to retry itself a max of 3 times
@@ -155,7 +155,7 @@ def submit_DAG(in_bucket, out_bucket, csv_file_list, workflow_dir, s3conf):
 
     dag_file = htcondor.dags.write_dag(dag, os.getcwd(), node_name_formatter=htcondor.dags.SimpleFormatter("_"))
     dag_submit = htcondor.Submit.from_dag(str(dag_file), {
-        'batch-name': "sco-geotiff-dag",
+        'batch-name': f"COG-Pipeline-DAG-{pattern}",
         # Hardcode that we don't want more than 10k jobs running at once
         'maxjobs': 10000,
     })
@@ -204,7 +204,7 @@ def submit_crondor(in_bucket, out_bucket, pattern, s3conf):
         "getenv":                  "true",
 
         # Finally, set the batch name so we know this is a crondor job
-        "JobBatchName":            f"SCO-Crondor-{pattern}",
+        "JobBatchName":            f"COG-Pipeline-Crondor-{pattern}",
     })
 
     schedd = htcondor.Schedd()
@@ -333,7 +333,7 @@ def crondorMain():
             matching_files[index] = f"{rename_map[file]}"
 
         # We now have the files, use them to submit the actual workflow
-        submit_DAG(args.input_bucket, args.output_bucket, matching_files, workflow_dir, s3conf)
+        submit_DAG(args.input_bucket, args.output_bucket, matching_files, workflow_dir, args.pattern, s3conf)
 
         # Finally, rename the remote objects to prevent re-processing
         rename_object(args.input_bucket, rename_map, s3conf)
