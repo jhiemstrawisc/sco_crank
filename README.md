@@ -37,6 +37,11 @@ at the output bucket, one with the same name as the input image, and one with th
 this naming scheme may result in a broken workflow.
 **NOTE:** Image paths in the CSV should not contain a preceding `/`. Buckets in S3 don't belong to a root like directories in
 filesystems do. The only exception to this rule is if the bucket was explicitly named to contain a preceding `/`.
+**WARNING:** One assumption that's made is that any CSV files used to start the workflow have unique base names. That is, if the
+input bucket has `path/to/files-raw.csv`, there MUST NOT be another `files-raw.csv` in the bucket. So this is illegal:
+`different/path/files-raw.csv`
+But this is okay:
+`different/path/different-raw.csv`
 
 ## Setup
 
