@@ -24,6 +24,20 @@ to a file that aggregates conversion failures. Likewise, any image pairs that ar
 are written to a file that aggregates success. These two files the replace the `processing-<TIMESTAMP>` file
 in the input bucket and can be used for monitoring jobs that might require intervention.
 
+## CSV Structure
+
+The input CSV is used to determine which images in the bucket are ready for processing, along with the number of bands
+the image has (which is important for the actual cog-->jpg conversion). Importantly, this CSV assumes two columns:
+`bucket/path/to/input_image.tif,<NUM BANDS>`
+where `bucket/path/to/input_image.tif` is the name of the image from the input bucket, and `<NUM BANDS>` should be replaced
+with the appropriate number of bands for the image. Under the hood, the script uses the image name to create two output images
+at the output bucket, one with the same name as the input image, and one with the same name but formatted as a `.jpg`.
+
+**NOTE:** One assumption made by the pipeline script is that *all* images being processed end in `.tif`. Failure to follow
+this naming scheme may result in a broken workflow.
+**NOTE:** Image paths in the CSV should not contain a preceding `/`. Buckets in S3 don't belong to a root like directories in
+filesystems do. The only exception to this rule is if the bucket was explicitly named to contain a preceding `/`.
+
 ## Setup
 
 Start by cloning this repository in a user home holder on the Access Point (typically ap2002.chtc.wisc.edu).

@@ -98,7 +98,7 @@ def submit_DAG(in_bucket, out_bucket, csv_file_list, workflow_dir, s3conf):
         # so we grab the executable from up a dir.
         "executable":              "../generate_cogs.sh",
         # "COGFILE":                 "cog_$(INFILE)",
-        "arguments":               "$(INFILE) cog_$(INFILE) $(OUTFILE) $(BANDS)",
+        "arguments":               "$(INFILE) $(BANDS)",
 
         # And requirements for running stuff
         "request_disk":            "1GB",
@@ -123,9 +123,9 @@ def submit_DAG(in_bucket, out_bucket, csv_file_list, workflow_dir, s3conf):
         # output bucket.
         "FULL_INFILE": files[idx][0],
         "INFILE": ((files[idx][0]).split("/"))[-1],
-        "FULL_OUTFILE": files[idx][1],
-        "OUTFILE": ((files[idx][1]).split("/"))[-1],
-        "BANDS": files[idx][2]} for idx in range(len(files))]
+        "FULL_OUTFILE": (files[idx][0]).replace(".tif", ".jpg"),
+        "OUTFILE": (((files[idx][0]).split("/"))[-1]).replace(".tif", ".jpg"),
+        "BANDS": files[idx][1]} for idx in range(len(files))]
     print("ABOUTY TO SUBMIT EP JOBS WITH INPUT ARGS: ", input_args)
 
     # Set up our post script -- this is how we manage state tracking to determine which jobs were actually successful
@@ -391,7 +391,7 @@ def postScript():
             for row in csv_reader:
                 # We know there should be an output tif and an output jpg in the first two columns
                 tif_im = row[0]
-                jpg_im = row[1]
+                jpg_im = tif_im.replace(".tif", ".jpg")
                 
                 if len(get_matching_objects(args.output_bucket, tif_im, s3conf)) > 0 and len(get_matching_objects(args.output_bucket, jpg_im, s3conf)) > 0:
                     # Objects found!
