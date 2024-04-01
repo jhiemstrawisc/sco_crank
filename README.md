@@ -53,7 +53,19 @@ cd chtc_cog_processing
 ```
 
 You'll first need to set up several environment pieces. After installing Conda (use the "Create a Miniconda Installation" instructions [here](https://chtc.cs.wisc.edu/uw-research-computing/conda-installation)),
-create the required conda environment by running `conda env create -f environment.yml`. After the environment is created, run `conda activate cog_pipeline`. 
+create the required conda environment by running `conda env create -f environment.yml`. After the environment is created, run `conda activate cog_pipeline`.
+
+Finally, you'll need to make sure the actual python script is executable. To do this, run `ls -la` in the repository directory. Locate the line containing the python script
+and make sure you see three `x`'s, indicating the script has the correct executable permission. For example, this will cause errors:
+```
+-rw-r--r-- 1 my_username my_group    20309 Mar 29 15:54 cog_pipeline.py
+```
+but this is okay:
+```
+-rwxr-xr-x 1 my_username my_group    20309 Mar 29 15:54 cog_pipeline.py
+```
+
+If the script does not have execution permissions, run `chmod +x cog_pipeline.py` and double check that it succeeded by running `ls -la` again.
 
 ## Start the Processing Pipeline
 
@@ -79,3 +91,82 @@ When matching files are found in the input bucket, a new directory is created wh
 **NOTE:** If any jobs are placed on hold with an error that indicates job credentials aren't available, try running
 `condor_submit scitokens_workaround.sub` before launching the DAG. This submits a hold job that forces Condor
 to make fresh credentials available to the DAG.
+
+If you believe some job encountered a different error, there are several files worth examining.
+
+First, the directory from which you ran `python3 cog_pipeline.py` will have 3 files you can check for debugging info related to
+the Crondor job that was submitted:
+
+1. `crondor_$(CLUSTER).log`
+2. `crondor_$(CLUSTER).out`
+3. `crondor_$(CLUSTER).err`
+
+In each of these files, `$(CLUSTER)` will be replaced by the job's ID. When you first run the cog_pipeline script, only the `.log` file
+will exist. The `.out` and `.err` files are created the first time the Crondor job wakes up and checks for input files to compute on.
+
+When the Crondor generates other image processing jobs, it creates a directory like:
+```
+workflow-run-<timestamp>
+```
+
+Any log files associated with those jobs will be located in that directory. While there will be many `dag` files in the directory,
+only a few will contain useful information in the bulk of cases:
+
+1. `<tif image name>.log/out/err`: These files will contain job specific information for the image being processed
+2. `post.out/err`: These files contain the results of the DAG's post script, which is responsible for determining which jobs completed and which failed.
+
+## Workflow Management
+
+### Crondor Jobs
+
+When first running the pipeline script, you submit a single Crondor job. To observe this job, run `condor_q`. This command displays all of the
+HTCondor jobs in your current queue. The job you just submitted will have a `BATCH_NAME` like:
+```
+COG-Pipeline-Crondor-<pattern>
+```
+where `<pattern>` is the glob pattern you initially passed to the script.
+
+For example, if you run:
+```
+python3 cog_pipeline.py -a ~/rmls3_keyid.txt -s ~/rmls3_accesskey.txt -e web.s3.wisc.edu --input-bucket rml-chtc-inputs --output-bucket rml-chtc-outputs -p "*raw.csv"
+```
+
+Then the job batch name will be:
+```
+COG-Pipeline-Crondor-*raw.csv
+```
+
+If you need to remove this job from the queue, there are two ways to do that. You can either remove it by the job's ID with:
+```
+condor_rm <the job's ID from JOB_IDS column>
+```
+
+Or you can remove it using the job's batch name:
+```
+condor_rm -c 'JobBatchName=="COG-Pipeline-Crondor-<insert the pattern here>"'
+```
+
+### Workflow Jobs
+
+In the event that the Crondor job finds work to do, it will submit a DAG of jobs, where each job processes a single tif.
+When this happens, you'll see a row after running `condor_q` with a batch name like
+```
+COG-Pipeline-DAG-<pattern>
+```
+One thing you'll notice about these jobs is that each file being processed has its own job id. As such, you can either remove
+each individual job with:
+```
+condor_rm <job id>
+```
+or you can remove the entire batch of jobs with:
+```
+condor_rm -c 'JobBatchName=="COG-Pipeline-DAG-<insert the pattern here>"'
+```
+
+### Watching the workflow
+
+If you want to monitor the progress of the Crondor and DAG jobs, you can do so by running:
+```
+condor_watch_q
+```
+This prints updates to the terminal in near realtime.
